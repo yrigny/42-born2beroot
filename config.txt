@@ -1,0 +1,190 @@
+-Mandatory----------------------------------------------------------------------
+
+0.0 install sudo
+# apt install sudo
+# sudo -V
+
+0.1 configure sudo
+# apt install vim
+# mkdir /var/log/sudo
+# vim /etc/sudoers.d/sudo_config
+Defaults  passwd_tries=3
+Defaults  badpass_message="Mensaje de error personalizado"
+Defaults  logfile="/var/log/sudo/sudo_config"
+Defaults  log_input, log_output
+Defaults  iolog_dir="/var/log/sudo"
+Defaults  requiretty
+Defaults  secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"
+:wq
+
+1.0 add user login
+# adduser yrigny
+# addgroup user42
+# adduser yrigny user42
+# adduser yrigny sudo
+
+1.1 check user groups
+# groups <username>
+or # cat /etc/group | grep <username>
+
+1.2 check group users
+# getent group <groupname>
+
+2.0 set password age
+# vim /etc/login.defs
+line "PASS_MAX_DAYS 99999" -> "PASS_MAX_DAYS 30"
+line "PASS_MIN_DAYS 0" -> "PASS_MIN_DAYS 2"
+:wq
+# chage -M 30 root
+# chage -m 2 root
+# chage -l root
+# chage -M 30 yrigny
+# chage -m 2 root
+# chage -l yrigny
+
+2.1 set strong password policy
+# apt install libpam-pwquality
+# vim /etc/pam.d/common-password
+line "password requisite pam_pwquality.so retry=3" -> "password requisite pam_pwquality.so retry=3 minlen=10 ucredit=-1 lcredit=-1 dcredit=-1 maxrepeat=3 reject_username difok=7 enforce_for_root"
+:wq
+
+3.0 install ufw
+# apt install ufw
+# ufw enable
+# service ufw status
+
+3.1 configure ufw
+# ufw allow 4242
+# ufw status
+# ufw status verbose
+# ufw status numbered
+
+4.0 install ssh
+# apt update
+# apt install openssh-server
+# service ssh status
+
+4.1 configure ssh
+# vim /etc/ssh/sshd_config
+line "# Port 22" -> "Port 4242"
+line "# PermitRootLogin prohibit-password" -> "PermitRootLogin no"
+:wq
+# vim /etc/ssh/ssh_config
+line "# Port 22" -> "Port 4242"
+:wq
+# service ssh restart
+# service ssh status
+
+4.2 set port-forwarding rule for ssh connection
+VirtualBox->Debian->Settings->Network->Port Forwarding->Add "Port 2222->Port 4242"
+
+4.3 test ssh connection from host machine
+$ ssh -p 2222 <username>@localhost
+(type in the password)
+(connection ok)
+$ logout
+
+5 monitoring bash script
+# vim /home/monitoring.sh
+#!/bin/bash
+archi=$(uname -a)
+pcpu=$(lscpu | grep "Socket(s)" | awk '$1 == "Socket(s):" {print $2}')
+vcpu=$(lscpu | grep "CPU(s)" | awk '$1 == "CPU(s):" {print $2}')
+usedm=$(free --mega | awk '$1 == "Mem:" {print $3}')
+totalm=$(free --mega | awk '$1 == "Mem:" {printf("%dMB"), $2}')
+pctm=$(free --mega | awk '$1 == "Mem:" {printf("(%.2f%%)", $3/$2*100)}')
+usedd=$(df -m | grep "/dev/" | grep -v "/boot/" | awk '{usedd += $3} END {print usedd}')
+totald=$(df -m | grep "/dev/" | grep -v "/boot/" | awk '{totald += $2} END {printf("%.0fGb", totald/1024)}')
+pctd=$(df -m | grep "/dev/" | grep -v "/boot/" | awk '{usedd += $3} {totald += $2} END {printf("(%d%%)", usedd/totald*100)}')
+idlecpu=$(vmstat 1 2 | tail -n 1 | awk '{print $(NF-2)}')
+usedcpu=$(expr 100 - $idlecpu)
+cpuload=$(printf "%.1f%%" $usedcpu)
+lastboot=$(who -b | awk '{print $3 " " $4}')
+if [ $(lsblk | grep "lvm" | wc -l) -gt 0 ]; then
+	lvmuse="yes"
+else
+	lvmuse="no"
+fi
+tcps=$(ss -ta | grep "ESTAB" | wc -l)
+users=$(who | wc -l)
+ip=$(hostname -I)
+mac=$(ip link show | grep "link/ether" | awk '{print $2}')
+sudocmds=$(journalctl _COMM=sudo | grep "COMMAND" | wc -l)
+wall "	#Architecture: $archi
+	#CPU physical: $pcpu
+	#vCPU: $vcpu
+	#Memery Usage: $usedm/$totalm $pctm
+	#Disk Usage: $usedd/$totald $pctd
+	#CPU load: $cpuload
+	#Last boot: $lastboot
+	#LVM use: $lvmuse
+	#Connections TCP: $tcps ESTABLISHED
+	#User log: $users
+	#Network: IP $ip ($mac)
+	#Sudo: $sudocmds cmd"
+:wq
+
+6.0 set monitoring script as cron job
+# crontab -u root -e
+add line "*/10 * * * * sh /home/monitoring.sh"
+
+-Bonus--------------------------------------------------------------------------
+
+0 install lighttpd
+# apt install lighttpd
+
+1 install and configure mariadb
+# apt install mariadb-server
+# mysql_secure_installation
+[ENTER][n][n][y][y][y][y]
+# mariadb
+CREATE DATABASE wordpress;
+SHOW DATABASES;
+CREATE USER 'yrigny'@'localhost' IDENTIFIED BY '970520';
+GRANT ALL PRIVILEGES ON wordpress.* TO 'yrigny'@'localhost';
+FLUSH PRIVILEGES;
+exit
+
+2 install php
+# apt install php-cgi php-mysql
+
+3 download and configure wordpress
+# apt install wget
+# wget http://wordpress.org/latest.tar.gz -P /var/www/html
+# tar -xzvf /var/www/html/latest.tar.gz
+# rm /var/www/html/latest.tar.gz
+# cp -r /var/www/html/wordpress/* /var/www/html
+# rm -rf /var/www/html/wordpress
+# cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
+# vim /var/www/html/wp-config.php
+line "define( 'DB_NAME', 'database_name_here' );" -> "define( 'DB_NAME', 'wordpress' );"
+line "define( 'DB_USER', 'username_here' );" -> "define( 'DB_USER', 'yrigny' );"
+line "define( 'DB_PASSWORD', 'password_here' );" -> "define( 'DB_PASSWORD', '970520' );"
+:wq
+
+4 configure lighttpd
+# lighty-enable-mod fastcgi
+# lighty-enable-mod fastcgi-php
+# service lighttpd force-reload
+
+5 open port 80 in ufw
+# ufw allow 80
+# ufw status
+
+6 set port-forwarding rule for http connection
+VirtualBox->Debian->Settings->Network->Port Forwarding->Add "Port 8080->Port 80"
+
+7 set wordpress page
+Browser->localhost:8080->wordpress login->wordpress site design
+Dashboard->Settings->Reading->Your homepage displays->A static page
+
+8 set up supplementary service
+# apt install lynx
+# apt install nsnake
+# apt-get install moon-buggy
+# export PATH=$PATH:/usr/games
+
+9 test supplementary service
+# lynx google.com
+# nsnake
+# moon-buggy

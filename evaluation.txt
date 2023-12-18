@@ -1,0 +1,12 @@
+retrieve the signature
+$ sha1sum /path_of_vm.vdi
+
+change hostname
+# hostnamectl set-hostname <hostname>
+# hostname
+
+manage crontab
+# service cron stop
+# service cron start
+# crontab -u root -e
+# crontab -u root -l
