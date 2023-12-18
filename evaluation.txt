@@ -10,3 +10,26 @@ manage crontab
 # service cron start
 # crontab -u root -e
 # crontab -u root -l
+
+- check if there’s GUI `ls /usr/bin/*session`  turns out like `/usr/bin/dbus-run-session`
+- check if sudo command is available `sudo -V`  or `which sudo`
+- check group status `getent group <groupname>`
+- check the groups the user belonging to `sudo groups <username>`
+- test sudo privileged commands `sudo apt update`
+- check ssh service status via root or sudo `service ssh status`
+- configure SSH via root or sudo `vi /etc/ssh/sshd_config`
+- `/etc/ssh/sshd_config`  handles incoming SSH connections on the server side
+- `/etc/ssh/ssh_config`  contains settings that control the behavior of the SSH client
+- check if firewall is enabled on system startup `ufw status`
+- check if AppArmor is enabled on system startup `service apparmor status`
+- sudo config file `/etc/sudoers.d/sudo_config`
+- password policy config file `**/etc/login.defs**`
+- strong password policy management is provided by `libpam-pwquality`
+- strong password policy config file `**/etc/pam.d/common-password**`
+- cron job management via root or sudo `crontab -u root -e`
+- stop the cron job via root or sudo `service cron stop`
+- disable cron service at boot via root or sudo `systemctl disable cron`
+- start the cron job via root or sudo `service cron start`
+- enable cron service at boot via root or sudo `systemctl enable cron`
+- check scheduled cron jobs via root or sudo `crontab -u root -l`
+- change hostname via root or sudo `vi /etc/hostname` or `hostnamectl set-hostname <hostname>`  (reboot to see the effect)
